@@ -4,6 +4,7 @@ import io
 from sqlalchemy import create_engine
 import progressbar
 import numpy as np
+import json
 
 
 def fetch_data(poverty_line):
@@ -46,17 +47,19 @@ def fetch_and_write_full_data(schema_name, table_name, engine):
     append_or_replace = "replace"
     for povline in progressbar.progressbar(np.linspace(0.01, 10, 1000)):
         pov_data = fetch_data(poverty_line=povline)
-        pov_data.to_sql(name="PovCalNetAgg", con=engine, schema="repo", index=False, if_exists=append_or_replace)
+        pov_data.to_sql(name="PovCalNetAgg", con=engine, schema="public", index=False, if_exists=append_or_replace)
         append_or_replace = "append"
 
 
 def main():
-    engine = create_engine('postgresql://postgres@/analyst_ui')
+    conf = json.load(open("config.json"))
+    password = conf["password"]
+    engine = create_engine('postgresql://postgres:{}@localhost/povcal:5432'.format(password))
     test_data = fetch_data(poverty_line=1.9)
-    existing_data = fetch_old_data("repo", "PovCalNetAgg", '"povertyLine" = 1.9', engine)
+    existing_data = fetch_old_data("public", "PovCalNetAgg", '"povertyLine" = 1.9', engine)
     its_the_same = data_is_the_same(test_data, existing_data)
     if not its_the_same:
-        fetch_and_write_full_data("repo", "PovCalNetAgg", engine)
+        fetch_and_write_full_data("public", "PovCalNetAgg", engine)
     else:
         print("No changes detected.")
     engine.dispose()
