@@ -1,0 +1,5 @@
+requests
+pandas
+sqlalchemy
+progressbar2
+numpy
