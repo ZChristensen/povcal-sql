@@ -54,7 +54,7 @@ def fetch_and_write_full_data(schema_name, table_name, engine):
 def main():
     conf = json.load(open("config.json"))
     password = conf["password"]
-    engine = create_engine('postgresql://postgres:{}@localhost/povcal:5432'.format(password))
+    engine = create_engine('postgresql://postgres:{}@localhost:5432/povcal'.format(password))
     test_data = fetch_data(poverty_line=1.9)
     existing_data = fetch_old_data("public", "PovCalNetSmy", '"PovertyLine" = 1.9', engine)
     its_the_same = data_is_the_same(test_data, existing_data)

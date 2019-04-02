@@ -6,7 +6,7 @@ import json
 def main():
     conf = json.load(open("config.json"))
     password = conf["password"]
-    engine = create_engine('postgresql://postgres:{}@localhost/povcal:5432'.format(password))
+    engine = create_engine('postgresql://postgres:{}@localhost:5432/povcal'.format(password))
     smy = pd.read_sql_table("PovCalNetSmy", con=engine, schema="public")
     agg = pd.read_sql_table("PovCalNetAgg", con=engine, schema="public")
 
