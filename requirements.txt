@@ -3,3 +3,4 @@ pandas
 sqlalchemy
 progressbar2
 numpy
+psycopg2
