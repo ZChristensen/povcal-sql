@@ -191,9 +191,7 @@ def save_backup(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name
 
 
 def main():
-    conf = json.load(open("config.json"))
-    password = conf["password"]
-    engine = create_engine('postgresql://postgres:{}@localhost:5432/povcal'.format(password))
+    engine = create_engine('postgresql://postgres@/povcal')
     test_smy_data = fetch_smy_data(poverty_line=1.9)
     test_svy_data = fetch_svy_data(poverty_line=1.9)
     test_agg_data = fetch_agg_data(poverty_line=1.9)
