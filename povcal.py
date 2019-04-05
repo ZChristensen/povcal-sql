@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import io
 from sqlalchemy import create_engine
+from sqlalchemy.sql import text
 import progressbar
 import numpy as np
 import json
@@ -170,21 +171,22 @@ def agg_data_is_the_same(new_data, old_data):
 
 def save_backup(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name, svy_schema_name, svy_table_name, engine):
     today_str = str(date.today()).replace("-","")
-    try:
-        smy = pd.read_sql_table(smy_table_name, con=engine, schema=smy_schema_name)
-        smy.to_sql(name=smy_table_name+today_str, con=engine, schema=smy_schema_name, index=False, if_exists="replace")
-    except:
-        pass
-    try:
-        svy = pd.read_sql_table(svy_table_name, con=engine, schema=svy_schema_name)
-        svy.to_sql(name=svy_table_name+today_str, con=engine, schema=svy_schema_name, index=False, if_exists="replace")
-    except:
-        pass
-    try:
-        agg = pd.read_sql_table(agg_table_name, con=engine, schema=agg_schema_name)
-        agg.to_sql(name=agg_table_name+today_str, con=engine, schema=agg_schema_name, index=False, if_exists="replace")
-    except:
-        pass
+    with engine.connect() as con:
+        try:
+            smy_copy_command = text('create table "{}"."{}" as table "{}"."{}"'.format(smy_schema_name,smy_table_name+today_str,smy_schema_name,smy_table_name))
+            con.execute(smy_copy_command)
+        except:
+            pass
+        try:
+            agg_copy_command = text('create table "{}"."{}" as table "{}"."{}"'.format(agg_schema_name,agg_table_name+today_str,agg_schema_name,agg_table_name))
+            con.execute(agg_copy_command)
+        except:
+            pass
+        try:
+            svy_copy_command = text('create table "{}"."{}" as table "{}"."{}"'.format(svy_schema_name,svy_table_name+today_str,svy_schema_name,svy_table_name))
+            con.execute(svy_copy_command)
+        except:
+            pass
 
 
 def main():
