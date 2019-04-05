@@ -7,6 +7,7 @@ import numpy as np
 import json
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from datetime import date
 
 
 def requests_retry_session(
@@ -53,7 +54,8 @@ def fetch_smy_data(poverty_line):
     smy_data = pd.read_csv(io.StringIO(s_response.decode('utf-8')))
 
     return smy_data
-	
+
+
 def fetch_old_smy_data(schema_name, table_name, boundary, engine):
     try:
         return pd.read_sql_query('SELECT * FROM "{}"."{}" WHERE {};'.format(schema_name, table_name, boundary), engine)
@@ -66,7 +68,7 @@ def smy_data_is_the_same(new_data, old_data):
     val_vars = id_vars + ["HeadCount"]
     n_sorted = new_data.sort_values(by=id_vars).round({'HeadCount': 3})[val_vars]
     o_sorted = old_data.sort_values(by=id_vars).round({'HeadCount': 3})[val_vars]
-    return n_sorted.equals(o_sorted)	
+    return n_sorted.equals(o_sorted)
 
 def fetch_svy_data(poverty_line):
     """Fetch data from PovCalNet at poverty_line."""
@@ -87,24 +89,24 @@ def fetch_svy_data(poverty_line):
     smy_data_svy = pd.read_csv(io.StringIO(s_response.decode('utf-8')))
 
     return smy_data_svy	
-	
+
 
 def fetch_old_svy_data(schema_name, table_name, boundary, engine):
     try:
         return pd.read_sql_query('SELECT * FROM "{}"."{}" WHERE {};'.format(schema_name, table_name, boundary), engine)
     except:
-        return pd.DataFrame(columns=["CountryCode", "RequestYear", "PovertyLine", "HeadCount"])
+        return pd.DataFrame(columns=["CountryCode", "DataYear", "PovertyLine", "HeadCount"])
 
 
 def svy_data_is_the_same(new_data, old_data):
-    id_vars = ["CountryCode", "RequestYear", "PovertyLine"]
+    id_vars = ["CountryCode", "DataYear", "PovertyLine"]
     val_vars = id_vars + ["HeadCount"]
     n_sorted = new_data.sort_values(by=id_vars).round({'HeadCount': 3})[val_vars]
     o_sorted = old_data.sort_values(by=id_vars).round({'HeadCount': 3})[val_vars]
     return n_sorted.equals(o_sorted)
 
 
-def fetch_and_write_full_data(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name,svy_schema_name, svy_table_name, engine):
+def fetch_and_write_full_data(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name, svy_schema_name, svy_table_name, engine):
     append_or_replace_smy = "replace"
     append_or_replace_agg = "replace"
     total_sequence = np.concatenate(
@@ -123,10 +125,10 @@ def fetch_and_write_full_data(smy_schema_name, smy_table_name, agg_schema_name, 
         agg_pov_data = fetch_agg_data(poverty_line=povline)
         agg_pov_data.to_sql(name="PovCalNetAgg", con=engine, schema="public", index=False, if_exists=append_or_replace_agg)
         append_or_replace_agg = "append"
-		svy_pov_data = fetch_svy_data(poverty_line=povline)
-        svy_pov_data.to_sql(name="PovCalNetSvy", con=engine, schema="public", index=False, if_exists=append_or_replace_svy)
+        svy_pov_data = fetch_svy_data(poverty_line=povline)
+        svy_pov_data.to_sql(name="PovCalNetSvy", con=engine, schema="public", index=False, if_exists=append_or_replace_smy_svy)
         append_or_replace_svy = "append"
-		
+
 
 
 def fetch_agg_data(poverty_line):
@@ -165,21 +167,42 @@ def agg_data_is_the_same(new_data, old_data):
     return n_sorted.equals(o_sorted)
 
 
+
+def save_backup(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name, svy_schema_name, svy_table_name, engine):
+    today_str = str(date.today()).replace("-","")
+    try:
+        smy = pd.read_sql_table(smy_table_name, con=engine, schema=smy_schema_name)
+        smy.to_sql(name=smy_table_name+today_str, con=engine, schema=smy_schema_name, index=False, if_exists="replace")
+    except:
+        pass
+    try:
+        svy = pd.read_sql_table(svy_table_name, con=engine, schema=svy_schema_name)
+        svy.to_sql(name=svy_table_name+today_str, con=engine, schema=svy_schema_name, index=False, if_exists="replace")
+    except:
+        pass
+    try:
+        agg = pd.read_sql_table(agg_table_name, con=engine, schema=agg_schema_name)
+        agg.to_sql(name=agg_table_name+today_str, con=engine, schema=agg_schema_name, index=False, if_exists="replace")
+    except:
+        pass
+
+
 def main():
     conf = json.load(open("config.json"))
     password = conf["password"]
     engine = create_engine('postgresql://postgres:{}@localhost:5432/povcal'.format(password))
     test_smy_data = fetch_smy_data(poverty_line=1.9)
-	 test_svy_data = fetch_svy_data(poverty_line=1.9)
+    test_svy_data = fetch_svy_data(poverty_line=1.9)
     test_agg_data = fetch_agg_data(poverty_line=1.9)
     existing_smy_data = fetch_old_smy_data("public", "PovCalNetSmy", '"PovertyLine" = 1.9', engine)
     existing_agg_data = fetch_old_agg_data("public", "PovCalNetAgg", '"povertyLine" = 1.9', engine)
-	existing_svy_data = fetch_old_agg_data("public", "PovCalNetSvy", '"povertyLine" = 1.9', engine)
+    existing_svy_data = fetch_old_agg_data("public", "PovCalNetSvy", '"povertyLine" = 1.9', engine)
     smy_is_same = smy_data_is_the_same(test_smy_data, existing_smy_data)
-	svy_is_same = svy_data_is_the_same(test_svy_data, existing_svy_data)
+    svy_is_same = svy_data_is_the_same(test_svy_data, existing_svy_data)
     agg_is_same = agg_data_is_the_same(test_agg_data, existing_agg_data)
-    its_the_same = smy_is_same and agg_is_same
+    its_the_same = smy_is_same and agg_is_same and svy_is_same
     if not its_the_same:
+        save_backup("public", "PovCalNetSmy", "public", "PovCalNetAgg","public", "PovCalNetSvy", engine)
         fetch_and_write_full_data("public", "PovCalNetSmy", "public", "PovCalNetAgg","public", "PovCalNetSvy", engine)
     else:
         print("No changes detected.")
