@@ -52,7 +52,7 @@ def fetch_smy_data(poverty_line):
 
     s_response = requests_retry_session().get(url=smy_url, timeout=30).content
 
-    smy_data = pd.read_csv(io.StringIO(s_response.decode('utf-8')))
+    smy_data = pd.read_csv(io.StringIO(s_response.decode('utf-8',errors='ignore')))
 
     return smy_data
 
@@ -87,9 +87,9 @@ def fetch_svy_data(poverty_line):
 
     s_response = requests_retry_session().get(url=smy_url_svy, timeout=30).content
 
-    smy_data_svy = pd.read_csv(io.StringIO(s_response.decode('utf-8')))
+    smy_data_svy = pd.read_csv(io.StringIO(s_response.decode('utf-8',errors='ignore')))
 
-    return smy_data_svy	
+    return smy_data_svy
 
 
 def fetch_old_svy_data(schema_name, table_name, boundary, engine):
@@ -110,6 +110,7 @@ def svy_data_is_the_same(new_data, old_data):
 def fetch_and_write_full_data(smy_schema_name, smy_table_name, agg_schema_name, agg_table_name, svy_schema_name, svy_table_name, engine):
     append_or_replace_smy = "replace"
     append_or_replace_agg = "replace"
+    append_or_replace_svy = "replace"
     total_sequence = np.concatenate(
         (
             seq(0, 10, 0.01),
@@ -127,7 +128,7 @@ def fetch_and_write_full_data(smy_schema_name, smy_table_name, agg_schema_name, 
         agg_pov_data.to_sql(name="PovCalNetAgg", con=engine, schema="public", index=False, if_exists=append_or_replace_agg)
         append_or_replace_agg = "append"
         svy_pov_data = fetch_svy_data(poverty_line=povline)
-        svy_pov_data.to_sql(name="PovCalNetSvy", con=engine, schema="public", index=False, if_exists=append_or_replace_smy_svy)
+        svy_pov_data.to_sql(name="PovCalNetSvy", con=engine, schema="public", index=False, if_exists=append_or_replace_svy)
         append_or_replace_svy = "append"
 
 
@@ -148,7 +149,7 @@ def fetch_agg_data(poverty_line):
 
     a_response = requests_retry_session().get(url=agg_url, timeout=30).content
 
-    agg_data = pd.read_csv(io.StringIO(a_response.decode('utf-8')))
+    agg_data = pd.read_csv(io.StringIO(a_response.decode('utf-8', errors='ignore')))
 
     return agg_data
 
@@ -198,7 +199,7 @@ def main():
     test_agg_data = fetch_agg_data(poverty_line=1.9)
     existing_smy_data = fetch_old_smy_data("public", "PovCalNetSmy", '"PovertyLine" = 1.9', engine)
     existing_agg_data = fetch_old_agg_data("public", "PovCalNetAgg", '"povertyLine" = 1.9', engine)
-    existing_svy_data = fetch_old_agg_data("public", "PovCalNetSvy", '"povertyLine" = 1.9', engine)
+    existing_svy_data = fetch_old_svy_data("public", "PovCalNetSvy", '"povertyLine" = 1.9', engine)
     smy_is_same = smy_data_is_the_same(test_smy_data, existing_smy_data)
     svy_is_same = svy_data_is_the_same(test_svy_data, existing_svy_data)
     agg_is_same = agg_data_is_the_same(test_agg_data, existing_agg_data)
